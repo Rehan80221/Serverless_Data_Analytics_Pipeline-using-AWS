@@ -1,0 +1,63 @@
+Lambda Function:
+1)process-kinesis-stream:
+
+import json
+import boto3
+
+import base64
+
+
+dynamodb = boto3.resource('dynamodb')
+table = dynamodb.Table('KinesisDataTable')
+
+def lambda_handler(event, context):
+    for record in event['Records']:
+        # Decode and parse the Kinesis data
+        payload = json.loads(base64.b64decode(record['kinesis']['data']))
+        
+        # Log the incoming record (optional)
+        print(f"Received: {payload}")
+        
+        # Insert into DynamoDB
+        table.put_item(Item={
+            'id': str(payload['id']),
+            'name': payload['name'],
+            'country': payload['country'],
+            'source': payload['source']
+        })
+    return {'statusCode': 200, 'body': 'Processed'}
+
+2)getDynamoData
+
+import boto3
+import json
+
+# Initialize DynamoDB resource
+dynamodb = boto3.resource('dynamodb')
+table = dynamodb.Table('KinesisDataTable')
+
+def lambda_handler(event, context):
+    try:
+        # Scan entire DynamoDB table
+        response = table.scan()
+        items = response.get('Items', [])
+
+        return {
+            'statusCode': 200,
+            'headers': {
+                "Access-Control-Allow-Origin": "*",  # Allow all domains
+                "Access-Control-Allow-Methods": "GET,OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type",
+                "Content-Type": "application/json"
+            },
+            'body': json.dumps(items)
+        }
+
+    except Exception as e:
+        return {
+            'statusCode': 500,
+            'headers': {
+                "Access-Control-Allow-Origin": "*"
+            },
+            'body': json.dumps({'error': str(e)})
+        }
